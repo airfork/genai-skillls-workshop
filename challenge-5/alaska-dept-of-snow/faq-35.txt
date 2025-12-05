@@ -1,3 +1,0 @@
-Where does ADS get its weather forecasts?
-
-ADS partners with the National Weather Service and maintains localized weather monitoring stations for more precise data across diverse regions.

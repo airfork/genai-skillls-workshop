@@ -13,6 +13,7 @@ from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def _load_bigquery_vector_store():
     """
     Try multiple import paths/names to find the BigQuery vector store across
@@ -35,10 +36,12 @@ def _load_bigquery_vector_store():
             continue
     return None
 
+
 class Chatbot:
     """
     A chatbot class that uses LangChain, BigQuery, and Vertex AI to answer questions.
     """
+
     def __init__(self):
         """
         Initializes the Chatbot by setting up the language model, embeddings, and vector store.
@@ -64,14 +67,13 @@ class Chatbot:
                     location="US",
                     embedding=self.embeddings,
                     content_field="answer",
-                    text_embedding_field="embedding"
+                    text_embedding_field="embedding",
                 )
                 self.retriever = vector_store.as_retriever()
             except Exception as e:
                 logger.warning("Failed to initialize BigQuery vector store: %s", e)
         else:
             logger.warning("BigQuery vector store class not found in installed packages. RAG will be disabled.")
-
 
     def handle_chat(self, user_message: str) -> str:
         """
@@ -100,19 +102,13 @@ class Chatbot:
 
         ANSWER:
         """
-        
-        prompt = PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question"]
-        )
+
+        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
         rag_chain = (
-            {"context": self.retriever, "question": RunnablePassthrough()}
-            | prompt
-            | self.llm
-            | StrOutputParser()
+            {"context": self.retriever, "question": RunnablePassthrough()} | prompt | self.llm | StrOutputParser()
         )
-        
+
         try:
             response = rag_chain.invoke(user_message)
             logger.info(f"Chatbot interaction - Prompt: {user_message} | Response: {response}")

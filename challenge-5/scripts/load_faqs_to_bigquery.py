@@ -21,6 +21,7 @@ BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", "ads_data")
 BIGQUERY_TABLE = "faq_knowledge_base"
 FAQS_CSV_PATH = "alaska-dept-of-snow/alaska-dept-of-snow-faqs.csv"
 
+
 def embed_text_to_vector(text: str) -> list[float]:
     """
     Generates an embedding for the given text using Vertex AI's TextEmbeddingModel.
@@ -33,6 +34,7 @@ def embed_text_to_vector(text: str) -> list[float]:
     except Exception as e:
         logger.error(f"Error generating embedding for text: {e}")
         return []
+
 
 def load_faqs_to_bigquery():
     """
@@ -56,29 +58,31 @@ def load_faqs_to_bigquery():
         return
 
     rows_to_insert = []
-    with open(FAQS_CSV_PATH, mode='r', encoding='utf-8') as file:
+    with open(FAQS_CSV_PATH, mode="r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for i, row in enumerate(reader):
-            question = row['question']
-            answer = row['answer']
-            
+            question = row["question"]
+            answer = row["answer"]
+
             # Generate embedding for the question+answer text
             # Combining question and answer for a more comprehensive embedding
             text_to_embed = f"Question: {question}\nAnswer: {answer}"
             embedding = embed_text_to_vector(text_to_embed)
 
             if not embedding:
-                logger.warning(f"Skipping row {i+1} due to embedding failure.")
+                logger.warning(f"Skipping row {i + 1} due to embedding failure.")
                 continue
 
-            rows_to_insert.append({
-                "id": str(uuid.uuid4()), # Generate a unique ID for each FAQ
-                "question": question,
-                "answer": answer,
-                "embedding": embedding,
-                "category": "FAQ" # Default category
-            })
-    
+            rows_to_insert.append(
+                {
+                    "id": str(uuid.uuid4()),  # Generate a unique ID for each FAQ
+                    "question": question,
+                    "answer": answer,
+                    "embedding": embedding,
+                    "category": "FAQ",  # Default category
+                }
+            )
+
     if not rows_to_insert:
         logger.info("No rows to insert.")
         return
@@ -88,7 +92,10 @@ def load_faqs_to_bigquery():
     if errors:
         logger.error(f"Errors occurred while inserting rows: {errors}")
     else:
-        logger.info(f"Successfully inserted {len(rows_to_insert)} rows into BigQuery table {BIGQUERY_DATASET}.{BIGQUERY_TABLE}.")
+        logger.info(
+            f"Successfully inserted {len(rows_to_insert)} rows into BigQuery table {BIGQUERY_DATASET}.{BIGQUERY_TABLE}."
+        )
+
 
 if __name__ == "__main__":
     logger.info("Starting FAQ data loading to BigQuery...")

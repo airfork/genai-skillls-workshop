@@ -22,15 +22,17 @@ except Exception as e:
     chat_service = None
     logger.error(f"Failed to initialize chatbot. Chat will be disabled. Error: {e}")
 
-@app.route('/')
+
+@app.route("/")
 def index():
     """
     Render the main page, showing the forecast for the 5 most popular cities in Alaska.
     """
     weather_data = get_alaska_weather()
-    return render_template('index.html', weather_data=weather_data)
+    return render_template("index.html", weather_data=weather_data)
 
-@app.route('/api/chat', methods=['POST'])
+
+@app.route("/api/chat", methods=["POST"])
 def chat():
     """
     Endpoint for the chatbot.
@@ -39,7 +41,7 @@ def chat():
         return jsonify({"error": "Chat service is not available."}), 503
 
     data = request.get_json()
-    user_message = data.get('message')
+    user_message = data.get("message")
 
     if not user_message:
         return jsonify({"error": "No message provided"}), 400
@@ -47,7 +49,8 @@ def chat():
     response_text = chat_service.handle_chat(user_message)
     return jsonify({"response": response_text})
 
-@app.route('/health')
+
+@app.route("/health")
 def health():
     """Health check endpoint for Cloud Run."""
     return "OK", 200

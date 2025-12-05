@@ -1,3 +1,0 @@
-Does ADS use cloud services for its data?
-
-ADS is exploring cloud options for real-time data sharing, but some administrators have reservations about security, compliance, and ongoing costs.
