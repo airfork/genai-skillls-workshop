@@ -53,6 +53,47 @@ The `scripts/` directory contains helper scripts to set up the backend infrastru
 - **Model Evaluation**: Run evaluation metrics with `uv run scripts/evaluate_model.py`
   - See `scripts/README_EVALUATION.md` for evaluation documentation
 
+## Application Architecture
+
+The application follows a modern cloud-native architecture with the following components:
+
+![Architecture Diagram](architecture_diagram.png)
+
+**Data Pipeline:**
+- FAQ data is loaded from CSV and processed with Vertex AI embeddings
+- Embeddings are stored in BigQuery for efficient similarity search
+
+**Application Layer:**
+- FastAPI backend deployed on Cloud Run for scalable serverless hosting
+- Handles user requests and orchestrates service calls
+
+**External Integrations:**
+- **Weather API**: Provides real-time weather forecasts for Alaska cities
+- **Google Maps API**: Geocoding and location services
+- **Vertex AI Agent**: Powers the conversational AI chatbot with LLM capabilities
+
+### Generating the Architecture Diagram
+
+To regenerate the architecture diagram:
+
+```bash
+# Install Graphviz (required dependency)
+# macOS:
+brew install graphviz
+
+# Ubuntu/Debian:
+sudo apt-get install graphviz
+
+# Windows:
+# Download from https://graphviz.org/download/
+
+# Install diagram generation tool
+pip install diagrams
+
+# Generate the diagram
+python generate_diagram.py
+```
+
 ## Code Quality
 
 This project uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting:
