@@ -191,20 +191,31 @@ class Chatbot:
             # Fail open - allow the response if sanitization fails
             return model_response
 
-    def _handle_weather_query(self, user_message: str) -> Optional[str]:
+    def _handle_weather_query(self, user_message: str, conversation_history: list = None) -> Optional[str]:
         """
         Check if the user is asking about weather and handle it with tools.
 
         Args:
             user_message: The user's input message
+            conversation_history: Previous conversation messages for context
 
         Returns:
             Weather response if it's a weather query, None otherwise
         """
+        # Build context from conversation history
+        history_context = ""
+        if conversation_history:
+            recent_history = conversation_history[-6:]  # Last 3 exchanges
+            for msg in recent_history:
+                role = msg["role"].capitalize()
+                history_context += f"{role}: {msg['content']}\n"
+
         # Use the LLM with tools to detect and handle weather queries
         weather_prompt = f"""You are a helpful assistant for the Alaska Department of Snow.
 
+{history_context}
 If the user is asking about weather for a specific city, use the get_city_weather tool to fetch the current weather.
+If the user refers to a city with words like "what about", "how about", or "there", use the conversation history to understand which city they mean.
 
 After getting the weather data:
 - If the city is in Alaska, respond with the weather in a friendly tone
@@ -244,13 +255,14 @@ User question: {user_message}"""
             logger.error(f"Error handling weather query: {e}")
             return None
 
-    def handle_chat(self, user_message: str) -> str:
+    def handle_chat(self, user_message: str, conversation_history: list = None) -> str:
         """
         Handles a user's chat message by performing a similarity search and generating a response.
-        Includes Model Armor sanitization and tool calling for weather queries.
+        Includes Model Armor sanitization, tool calling for weather queries, and conversation history.
 
         Args:
             user_message: The user's input message
+            conversation_history: List of previous messages in format [{"role": "user/assistant", "content": "..."}]
 
         Returns:
             The chatbot's response, or an error message if blocked/unavailable
@@ -258,15 +270,32 @@ User question: {user_message}"""
         if not self.retriever:
             return "Sorry, the knowledge base is currently unavailable."
 
+        if conversation_history is None:
+            conversation_history = []
+
         # Sanitize user prompt
         sanitized_prompt = self._sanitize_prompt(user_message)
         if sanitized_prompt is None:
             logger.warning("User prompt blocked - returning error message")
             return "I'm sorry, but I cannot process that request. Please rephrase your question."
 
-        # Check if this is a weather query
-        if "weather" in sanitized_prompt.lower():
-            weather_response = self._handle_weather_query(sanitized_prompt)
+        # Check if this is a weather query or follow-up
+        # Look for weather keywords or follow-up patterns
+        is_weather_related = "weather" in sanitized_prompt.lower() or any(
+            pattern in sanitized_prompt.lower()
+            for pattern in ["what about", "how about", "what's it like in", "temperature in", "forecast for"]
+        )
+
+        # Also check if previous message was about weather
+        if conversation_history and len(conversation_history) > 0:
+            last_exchange = conversation_history[-2:]  # Last user + assistant message
+            for msg in last_exchange:
+                if "weather" in msg["content"].lower() or "temperature" in msg["content"].lower():
+                    is_weather_related = True
+                    break
+
+        if is_weather_related:
+            weather_response = self._handle_weather_query(sanitized_prompt, conversation_history)
             if weather_response:
                 # Sanitize the weather response
                 sanitized_response = self._sanitize_response(weather_response)
@@ -278,6 +307,14 @@ User question: {user_message}"""
                 return sanitized_response
 
         # Fall back to RAG for non-weather queries
+        # Build conversation context
+        history_text = ""
+        if conversation_history:
+            recent_history = conversation_history[-4:]  # Last 2 exchanges
+            for msg in recent_history:
+                role = "User" if msg["role"] == "user" else "Assistant"
+                history_text += f"{role}: {msg['content']}\n"
+
         prompt_template = """
         You are a friendly and helpful AI assistant for the Alaska Department of Snow.
         Your goal is to provide warm, conversational responses while answering questions accurately based on the provided context.
@@ -289,6 +326,10 @@ User question: {user_message}"""
         - If the context doesn't contain the answer, politely let them know you don't have that specific information
         - Never make up information - only use what's in the context
         - Feel free to acknowledge Alaska's unique challenges (weather, distance, etc.) when relevant
+        - Use the conversation history to understand follow-up questions
+
+        CONVERSATION HISTORY:
+        {history}
 
         CONTEXT:
         {context}
@@ -299,10 +340,16 @@ User question: {user_message}"""
         ANSWER:
         """
 
-        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+        prompt = PromptTemplate(
+            template=prompt_template, input_variables=["history", "context", "question"]
+        )
 
         rag_chain = (
-            {"context": self.retriever, "question": RunnablePassthrough()}
+            {
+                "history": lambda _: history_text,
+                "context": self.retriever,
+                "question": RunnablePassthrough()
+            }
             | prompt
             | self.llm_without_tools
             | StrOutputParser()
