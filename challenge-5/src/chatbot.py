@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from importlib import import_module
@@ -9,11 +10,38 @@ from google.cloud.modelarmor_v1 import types as armor_types
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
+from langchain_core.tools import tool
 from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
+
+from .weather_service import get_weather_forecast
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+@tool
+def get_city_weather(city_name: str) -> str:
+    """
+    Get current weather information for any city.
+
+    This tool fetches real-time weather data including temperature and conditions.
+    It also detects whether the city is in Alaska or not.
+
+    Args:
+        city_name: The name of the city to get weather for (e.g., "Anchorage", "Seattle", "New York")
+
+    Returns:
+        A JSON string with weather information including whether the city is in Alaska
+    """
+    try:
+        weather_data = get_weather_forecast(city_name, check_alaska=True)
+        return json.dumps(weather_data)
+    except Exception as e:
+        logger.error(f"Error fetching weather for {city_name}: {e}")
+        return json.dumps(
+            {"city": city_name, "temp": "--", "condition": "Error fetching weather", "is_in_alaska": False}
+        )
 
 
 def _load_bigquery_vector_store():
@@ -53,7 +81,11 @@ class Chatbot:
         region = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
         vertexai.init(project=project_id, location=region)
 
-        self.llm = ChatVertexAI(model="gemini-2.0-flash-exp", project=project_id, location=region)
+        # Bind tools to the LLM
+        self.llm = ChatVertexAI(model="gemini-2.0-flash-exp", project=project_id, location=region).bind_tools(
+            [get_city_weather]
+        )
+        self.llm_without_tools = ChatVertexAI(model="gemini-2.0-flash-exp", project=project_id, location=region)
         self.embeddings = VertexAIEmbeddings(model_name="text-embedding-004", project=project_id, location=region)
 
         # Initialize Model Armor client
@@ -159,10 +191,63 @@ class Chatbot:
             # Fail open - allow the response if sanitization fails
             return model_response
 
+    def _handle_weather_query(self, user_message: str) -> Optional[str]:
+        """
+        Check if the user is asking about weather and handle it with tools.
+
+        Args:
+            user_message: The user's input message
+
+        Returns:
+            Weather response if it's a weather query, None otherwise
+        """
+        # Use the LLM with tools to detect and handle weather queries
+        weather_prompt = f"""You are a helpful assistant for the Alaska Department of Snow.
+
+If the user is asking about weather for a specific city, use the get_city_weather tool to fetch the current weather.
+
+After getting the weather data:
+- If the city is in Alaska, respond with the weather in a friendly tone
+- If the city is NOT in Alaska, acknowledge it's not in Alaska but still provide the weather, saying something like "That's not in Alaska, but the weather in [city] is..."
+
+User question: {user_message}"""
+
+        try:
+            # Invoke the LLM with tools
+            response = self.llm.invoke(weather_prompt)
+
+            # Check if tool was called
+            if hasattr(response, "tool_calls") and response.tool_calls:
+                # Execute the tool
+                tool_call = response.tool_calls[0]
+                tool_output = get_city_weather.invoke(tool_call["args"])
+
+                # Parse the weather data
+                weather_data = json.loads(tool_output)
+
+                # Generate a friendly response based on Alaska status
+                if weather_data.get("is_in_alaska"):
+                    final_response = f"The current weather in {weather_data['city']}, Alaska is {weather_data['temp']} with {weather_data['condition'].lower()}."
+                else:
+                    final_response = f"That's not in Alaska, but the weather in {weather_data['full_location']} is {weather_data['temp']} with {weather_data['condition'].lower()}."
+
+                return final_response
+
+            # Check if the response content indicates it's a weather query
+            response_text = response.content if hasattr(response, "content") else str(response)
+            if "weather" in user_message.lower() and ("temperature" in response_text.lower() or "°" in response_text):
+                return response_text
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error handling weather query: {e}")
+            return None
+
     def handle_chat(self, user_message: str) -> str:
         """
         Handles a user's chat message by performing a similarity search and generating a response.
-        Includes Model Armor sanitization for both input and output.
+        Includes Model Armor sanitization and tool calling for weather queries.
 
         Args:
             user_message: The user's input message
@@ -179,6 +264,20 @@ class Chatbot:
             logger.warning("User prompt blocked - returning error message")
             return "I'm sorry, but I cannot process that request. Please rephrase your question."
 
+        # Check if this is a weather query
+        if "weather" in sanitized_prompt.lower():
+            weather_response = self._handle_weather_query(sanitized_prompt)
+            if weather_response:
+                # Sanitize the weather response
+                sanitized_response = self._sanitize_response(weather_response)
+                if sanitized_response is None:
+                    logger.warning("Weather response blocked - returning safe message")
+                    return "I apologize, but I cannot provide that information. Please contact your local ADS office for assistance."
+
+                logger.info(f"Chatbot interaction (weather) - Prompt: {user_message} | Response: {sanitized_response}")
+                return sanitized_response
+
+        # Fall back to RAG for non-weather queries
         prompt_template = """
         You are a friendly and helpful AI assistant for the Alaska Department of Snow.
         Your goal is to provide warm, conversational responses while answering questions accurately based on the provided context.
@@ -203,7 +302,10 @@ class Chatbot:
         prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
         rag_chain = (
-            {"context": self.retriever, "question": RunnablePassthrough()} | prompt | self.llm | StrOutputParser()
+            {"context": self.retriever, "question": RunnablePassthrough()}
+            | prompt
+            | self.llm_without_tools
+            | StrOutputParser()
         )
 
         try:
