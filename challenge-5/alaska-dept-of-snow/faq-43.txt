@@ -1,0 +1,3 @@
+Who manages the SnowLine app updates?
+
+ADS’s IT division manages app maintenance and updates, occasionally contracting specialized developers for major feature releases.

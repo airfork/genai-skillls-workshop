@@ -1,0 +1,10 @@
+flask
+python-dotenv
+google-cloud-bigquery
+google-cloud-aiplatform
+langchain-google-vertexai
+langchain-google-community[featurestore]
+requests
+pandas
+langchain
+langchain-core

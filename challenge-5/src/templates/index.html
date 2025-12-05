@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alaska Department of Snow - Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --gov-blue: #112e51;
+            --gov-red: #e31c3d;
+            --gov-light-blue: #0071bc;
+            --gov-gray: #5b616b;
+            --gov-bg: #f1f1f1;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            background-color: var(--gov-bg);
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gov-header {
+            background-color: var(--gov-blue);
+            color: white;
+            padding: 1rem 0;
+            border-bottom: 4px solid var(--gov-red);
+        }
+
+        .gov-header .container-fluid {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .gov-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .gov-header .subtitle {
+            font-size: 0.9rem;
+            color: #dfe1e2;
+            margin-top: 0.25rem;
+        }
+
+        .forecast-section {
+            background: white;
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 1200px;
+            border-left: 4px solid var(--gov-light-blue);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .forecast-section h2 {
+            color: var(--gov-blue);
+            font-weight: 700;
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .forecast-section .lead {
+            color: var(--gov-gray);
+            margin-bottom: 1.5rem;
+        }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .weather-card {
+            background: white;
+            border: 1px solid #dfe1e2;
+            border-radius: 4px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .weather-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .weather-card .city-name {
+            color: var(--gov-blue);
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 2px solid var(--gov-light-blue);
+            padding-bottom: 0.5rem;
+        }
+
+        .weather-card .temperature {
+            color: var(--gov-light-blue);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .weather-card .condition {
+            color: var(--gov-gray);
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+
+        .chat-section {
+            max-width: 1200px;
+            margin: 2rem auto;
+            background: white;
+            padding: 2rem;
+            border-left: 4px solid var(--gov-light-blue);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .chat-section h3 {
+            color: var(--gov-blue);
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .chat-history {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dfe1e2;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+
+        .user-message {
+            text-align: right;
+            margin-bottom: 1rem;
+        }
+
+        .user-message div {
+            background-color: var(--gov-light-blue);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            display: inline-block;
+            max-width: 70%;
+            text-align: left;
+        }
+
+        .agent-message {
+            text-align: left;
+            margin-bottom: 1rem;
+        }
+
+        .agent-message div {
+            background-color: white;
+            border: 1px solid #dfe1e2;
+            color: var(--gov-gray);
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            display: inline-block;
+            max-width: 70%;
+        }
+
+        .btn-primary {
+            background-color: var(--gov-light-blue);
+            border-color: var(--gov-light-blue);
+            font-weight: 600;
+            padding: 0.5rem 1.5rem;
+        }
+
+        .btn-primary:hover {
+            background-color: #205493;
+            border-color: #205493;
+        }
+
+        .form-control:focus {
+            border-color: var(--gov-light-blue);
+            box-shadow: 0 0 0 0.2rem rgba(0, 113, 188, 0.25);
+        }
+
+        .main-content {
+            flex: 1;
+        }
+
+        .gov-footer {
+            background-color: var(--gov-blue);
+            color: white;
+            padding: 1.5rem 0;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="gov-header">
+        <div class="container-fluid">
+            <h1>
+                <span>❄️</span>
+                <span>Alaska Department of Snow</span>
+            </h1>
+            <div class="subtitle">Official Government Information & Services</div>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="container">
+            <section class="forecast-section">
+                <h2>Current Weather Conditions</h2>
+                <p class="lead">Live weather information for Alaska's most populated cities</p>
+                <div class="weather-grid">
+                    {% for city_weather in weather_data %}
+                    <div class="weather-card">
+                        <div class="city-name">{{ city_weather.city }}</div>
+                        <div class="temperature">{{ city_weather.temp }}</div>
+                        <div class="condition">{{ city_weather.condition }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="chat-section">
+                <h3>Snow Information Assistant</h3>
+                <p class="text-muted mb-3">Get answers about snow removal, school closures, weather forecasts, and more.</p>
+                <div id="chat-history" class="chat-history">
+                    <div class="agent-message"><div>Hello! I'm here to help you with information about snow removal, school closures, weather forecasts, and other Alaska Department of Snow services. How can I assist you today?</div></div>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="user-input" class="form-control" placeholder="Type your question here..." aria-label="User question">
+                    <button class="btn btn-primary" type="button" id="send-btn">Send</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <footer class="gov-footer">
+        <div class="container">
+            Alaska Department of Snow | An Official State of Alaska Website
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        document.getElementById('user-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const inputField = document.getElementById('user-input');
+            const message = inputField.value;
+            if (!message) return;
+
+            const chatHistory = document.getElementById('chat-history');
+            chatHistory.innerHTML += `<div class="user-message"><div>${message}</div></div>`;
+            inputField.value = '';
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                const data = await response.json();
+                chatHistory.innerHTML += `<div class="agent-message"><div>${data.response || data.error}</div></div>`;
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            } catch (error) {
+                console.error('Error:', error);
+                chatHistory.innerHTML += `<div class="agent-message"><div class="text-danger">Error connecting to server.</div></div>`;
+            }
+        }
+    </script>
+</body>
+</html>

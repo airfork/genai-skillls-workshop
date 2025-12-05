@@ -1,0 +1,3 @@
+How does ADS handle interagency communication?
+
+ADS uses a centralized coordination system shared with local governments, school districts, and emergency services to streamline announcements and responses.

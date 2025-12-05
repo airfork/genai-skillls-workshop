@@ -1,0 +1,3 @@
+What technology is ADS exploring for cost savings?
+
+ADS is evaluating GPS tracking for plow fleets, remote sensors for snowfall measurement, and potential cloud solutions to improve interagency communication.
